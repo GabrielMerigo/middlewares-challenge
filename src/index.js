@@ -11,36 +11,50 @@ const users = [];
 
 function checksExistsUserAccount(request, response, next) {
   const { username } = request.headers;
-  const usernameExists = users.some((user) => username === user.username);
+  const userExists = users.find((user) => username === user.username);
 
-  if (!usernameExists)
-    return response.status(400).json({ error: "User does not exists" });
+  if (!userExists)
+    return response.status(404).json({ error: "User does not exists" });
 
-  request.username = username;
+  request.user = userExists;
   next();
 }
 
 function checksCreateTodosUserAvailability(request, response, next) {
-  const { username } = request;
-  const user = users.find((user) => username === user.username);
+  const { user } = request;
+  const userHasFreePlan = user.pro === false && user.todos <= 10;
+  const userHasProPlan = user.pro === true;
 
-  if (!user.pro === false && !user.todos <= 10)
-    return response.status(400).json({
-      error: "Plan needs to be free and can not has more than 10 todos created",
-    });
+  if (userHasProPlan || userHasFreePlan) return next();
+
+  return response.status(403).json({
+    error: "Plan needs to be free and can not has more than 10 todos created",
+  });
+}
+
+function checksTodoExists(request, response, next) {
+  const { user } = request;
+  const { id } = request.params;
+  if (!validate(id))
+    return response.status(400).json({ error: "id is not an UUID" });
+
+  if (!user) return response.status(404).json({ error: "User does not exist" });
+
+  const todo = user.todos.find((todo) => todo.id === id);
+  if (!todo) return response.status(404).json({ error: "Todo does not exist" });
 
   next();
 }
 
-function checksTodoExists(request, response, next) {
-  const { username } = request;
-  const { id } = request.params;
-  const todo = users.todos.find((todo) => todo.id === id);
-  // parei aq
-}
-
 function findUserById(request, response, next) {
-  // Complete aqui
+  const { id } = request.params;
+  const user = users.find((user) => user.id === id);
+
+  if (!user)
+    return response.status(404).json({ error: "User does not exists" });
+
+  request.user = user;
+  next();
 }
 
 app.post("/users", (request, response) => {
